@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>U.S. Electric Vehicle Data Analysis - DATA.GOV Personnal Data Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script>
+        // Tailwind配置
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#8A8F98',
+                        dark: '#111827',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'bounce-slow': 'bounce 3s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+    <style type="text/css">
+        @layer utilities {
+            .transition-custom {
+                transition: all 0.2s ease-in-out;
+            }
+            .card-hover {
+                transition: transform 0.3s ease-in-out;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+            }
+        }
+        /* 添加自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #2D3748;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4A5568;
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+        
+        /* 折叠面板样式 */
+        .collapsible-content {
+            display: none;
+            visibility: hidden;
+            position: absolute;
+            overflow: hidden;
+            height: 0;
+            width: 0;
+            opacity: 0;
+        }
+        .collapsible-content.open {
+            display: block;
+            visibility: visible;
+            position: static;
+            height: auto;
+            width: auto;
+            opacity: 1;
+            padding: 1.5rem;
+        }
+    </style>
+    <script>
+
+        // 翻译内容
+        const translations = {
+            'zh': {
+                'chart.region_desc': '展示了华盛顿州电动汽车数量前10名的县区分布情况，其中King县拥有最高的电动汽车密度，占据主导地位，这与该地区的高收入水平和环保意识密切相关。',
+                'card.time_range': '数据时间跨度',
+                'card.year_range': '1999年-2025年',
+                'card.update_date': '数据更新日期：2025年3月14日',
+                'card.total_vehicles': '登记车辆总数',
+                'card.total_desc': '华盛顿州电动汽车总数',
+                'card.main_manufacturer': '主要制造商',
+                'card.tesla': '特斯拉',
+                'card.manufacturer_desc': '市场份额最大的制造商',
+                'card.popular_model': '热门车型',
+                'card.model_desc': '特斯拉最畅销车型',
+                'nav.projects': '数据分析案例',
+                'nav.contact': '联系我们',
+                'title.main': '美国电动汽车分布数据分析',
+                'conclusion.title': '结论与建议',
+                'conclusion.trend_title': '市场趋势分析',
+                'conclusion.trend_p1': '华盛顿州电动汽车市场呈现显著增长态势，特斯拉以42.9%的市场份额占据主导地位，其Model Y和Model 3分别占据20.9%和18.7%的市场份额，呈现出强劲的品牌竞争力。日产和雪佛兰紧随其后，形成了多元化的市场竞争格局。',
+                'conclusion.trend_p2': '从车型年份分布来看，中位数为2023年，表明市场以新车型为主，反映出消费者对新技术和高性能电动车的偏好。纯电动车型（BEV）占比79.3%，插电式混合动力车型（PHEV）占比20.7%，显示市场正在向零排放车型转型。',
+                'conclusion.trend_p3': '电动续航里程方面，虽然数据缺失率较高（58.95%），但现有数据显示平均续航里程达46.76英里，最高可达337英里，反映出电池技术的持续进步。',
+                'conclusion.region_title': '地区分布特征',
+                'conclusion.region_p1': 'King县是华盛顿州电动汽车分布最密集的区域，占全州电动车保有量的50%以上，这与该地区的高收入水平、完善的充电基础设施和强烈的环保意识密切相关。西雅图作为主要城市，拥有36,865辆电动汽车，展现出都市区对清洁能源交通的高度接受度。',
+                'conclusion.region_p2': '在电力供应方面，普吉特海湾能源公司（Puget Sound Energy）在电动汽车充电服务市场占据主导地位，为大多数电动汽车用户提供稳定的充电服务支持。这种集中化的能源供应格局有利于统一规划和优化充电网络。',
+                'conclusion.suggestion_title': '发展建议',
+                'conclusion.suggestion_p1': '1. 充电基础设施优化：建议在电动汽车密度较低的农村和郊区地区加快充电设施布局，重点关注49个立法区的均衡发展，提高充电便利性。',
+                'conclusion.suggestion_p2': '2. 市场多元化发展：鼓励更多制造商进入市场，通过良性竞争推动技术创新和价格优化，为消费者提供更多选择。特别是在中端市场，需要增加价格更亲民的车型供给。',
+                'conclusion.suggestion_p3': '3. 政策支持方向：建议针对2,191个人口普查区域的特点，制定差异化的补贴政策和推广策略，重点支持清洁能源汽车认证（Clean Alternative Fuel Vehicle）项目的深入实施。',
+                'conclusion.suggestion_p4': '4. 数据监测完善：加强对电动汽车续航里程和零售价格等关键数据的收集和监测，为政策制定和市场规划提供更可靠的数据支持。',
+                'title.subtitle': '深入解读华盛顿州电动汽车分布数据，探索电动汽车市场趋势与环境影响',
+                'title.platform': 'DATA.GOV个人数据分析',
+                'title.ev_analysis': '电动汽车数据分析',
+                'data.overview_title': '数据概览（详情请点击）',
+                'data.source_prefix': '数据来源于',
+                'data.source_link': '美国政府开放数据平台（DATA.GOV）',
+                'data.source_description': '通过华盛顿州机动车管理局（DOL），收录了该州所有已注册的电动汽车信息。数据集时间跨度从1999年至2025年，共记录了232,230辆电动汽车，涵盖了从车辆基本信息到地理分布等多个维度的详细数据。',
+                'data.value_description': '这份数据集的价值在于它不仅提供了电动汽车市场的发展趋势，还包含了详细的地理位置信息和人口普查区域数据，可用于分析电动汽车分布与人口密度、收入水平等社会经济因素的关联。通过对这些数据的深入分析，我们可以更好地理解电动汽车的市场渗透率和未来发展潜力。',
+                'data.update_date': '数据更新日期：2025年3月14日',
+                'data.columns_title': '数据列信息（详情请点击）',
+                'data.basic_info_title': '1. 车辆基本信息',
+                'data.vin_label': 'VIN码前10位 (VIN (1-10))',
+                'data.vin_value': '：13,560个不同值，最常见的为7SAYGDEE6P，出现1,193次',
+                'data.make_label': '制造商 (Make)',
+                'data.make_value': '：46个品牌，特斯拉占比最高达42.9%，其次是日产和雪佛兰',
+                'data.model_label': '型号 (Model)',
+                'data.model_value': '：170种不同型号，特斯拉Model Y最受欢迎，占比20.9%',
+                'data.year_label': '车型年份 (Model Year)',
+                'data.year_value': '：覆盖1999-2025年，中位数为2023年，显示市场以新车为主',
+                'data.type_label': '车辆类型 (Electric Vehicle Type)',
+                'data.type_value': '：BEV占比79.3%，PHEV占比20.7%',
+                'data.tech_params_title': '2. 技术参数',
+                'data.range_label': '电动续航里程 (Electric Range)',
+                'data.range_value': '：范围0-337英里，平均46.76英里，数据缺失率58.95%，统计信息仅基于有效数据',
+                'data.msrp_label': '基础建议零售价 (Base MSRP)',
+                'data.msrp_value': '：范围从经济型到高端车型的84.5万美元，但由于数据缺失率高达98.59%，统计信息可能不具有代表性',
+                'data.eligibility_label': '清洁能源汽车资格 (Clean Alternative Fuel Vehicle Eligibility)',
+                'data.eligibility_value': '：三类：合格、不合格和待研究，其中待研究占比最高',
+                'data.geo_info_title': '3. 地理位置信息',
+                'data.county_label': '县 (County)',
+                'data.county_value': '：King县拥有最多电动车，占比超过50%。可通过柱状图展示各县电动车分布，使用地理信息系统(GIS)绘制热力图，分析区域集中度',
+                'data.city_label': '城市 (City)',
+                'data.city_value': '：西雅图领先，拥有36,865辆。建议使用地图可视化展示城市分布，结合人口数据计算人均拥有率，分析城市间差异',
+                'data.state_label': '州 (State)',
+                'data.state_value': '：主要在华盛顿州，少量跨州登记。可分析跨州登记原因，研究相邻州政策对登记地选择的影响',
+                'data.postal_label': '邮政编码 (Postal Code)',
+                'data.postal_value': '：950个不同区域。可用于微观区域分析，结合社会经济数据研究购买力分布，绘制邮编级别渗透率地图',
+                'data.location_label': '具体位置坐标 (Location)',
+                'data.location_value': '：可用于hots分析。建议使用空间聚类分析识别高密度区域，结合充电站分布进行设施规划优化',
+                'data.utility_label': '电力公司 (Electric Utility)',
+                'data.utility_value': '：普吉特海湾能源公司服务范围最广。可分析不同电力公司服务区域的电动车分布特征，评估电网负载影响',
+                'data.admin_info_title': '4. 行政管理信息',
+                'data.dol_id_label': 'DOL车辆ID (DOL Vehicle ID)',
+                'data.dol_id_value': '：唯一标识符。可用于追踪个体车辆注册状态变化，分析车辆生命周期特征',
+                'data.legislative_label': '立法区 (Legislative District)',
+                'data.legislative_value': '：1-49区，分布相对均匀，中位数为32区。建议分析各区电动车政策差异，评估政策效果，可使用箱线图展示分布特征',
+                'data.census_label': '2020年人口普查区域 (2020 Census Tract)',
+                'data.census_value': '：2,191个不同区域。建议结合人口普查数据进行多维度分析，如收入水平、教育程度与电动车普及率的关系，可使用散点图和相关性分析',
+                'chart.manufacturer_desc': '特斯拉在华盛顿州电动汽车市场占据主导地位，其次是日产和雪佛兰。',
+                'chart.ev_trend_desc': '纯电动车型在华盛顿州的占比逐年提高，显示出消费者对零排放车辆的偏好增强。',
+                'chart.model_desc': '特斯拉Model 3和Model Y是华盛顿州最受欢迎的电动车型，日产聆风紧随其后。',
+                'chart.utility_desc': '普吉特海湾能源公司在华盛顿州电动汽车充电服务中占据主导地位，为大多数电动汽车用户提供充电服务。'
+            },
+            'en': {
+                'conclusion.title': 'Conclusions and Recommendations',
+                'conclusion.trend_title': 'Market Trend Analysis',
+                'conclusion.trend_p1': 'The electric vehicle market in Washington State shows significant growth, with Tesla dominating a 42.9% market share. Tesla\'s Model Y and Model 3 account for 20.9% and 18.7% of the market share respectively, demonstrating strong brand competitiveness. Nissan and Chevrolet follow closely, forming a diversified market competition landscape.',
+                'conclusion.trend_p2': 'Looking at the model year distribution, the median is 2023, indicating that the market is dominated by new models, reflecting consumer preference for new technology and high-performance electric vehicles. Battery Electric Vehicles (BEV) account for 79.3% while Plug-in Hybrid Electric Vehicles (PHEV) account for 20.7%, showing the market\'s transition towards zero-emission vehicles.',
+                'conclusion.trend_p3': 'Regarding electric range, although the data missing rate is high (58.95%), available data shows an average range of 46.76 miles, with a maximum of 337 miles, reflecting continuous improvement in battery technology.',
+                'conclusion.region_title': 'Regional Distribution Characteristics',
+                'conclusion.region_p1': 'King County is the most densely populated area for electric vehicles in Washington State, accounting for over 50% of the state\'s EV ownership. This is closely related to the region\'s high income levels, well-developed charging infrastructure, and strong environmental awareness. Seattle, as the major city, has 36,865 electric vehicles, demonstrating high acceptance of clean energy transportation in urban areas.',
+                'conclusion.region_p2': 'In terms of power supply, Puget Sound Energy dominates the electric vehicle charging service market, providing stable charging support for most electric vehicle users. This centralized energy supply pattern is conducive to unified planning and optimization of the charging network.',
+                'conclusion.suggestion_title': 'Development Recommendations',
+                'conclusion.suggestion_p1': '1. Charging Infrastructure Optimization: It is recommended to accelerate the deployment of charging facilities in rural and suburban areas with lower electric vehicle density, focusing on balanced development across 49 legislative districts to improve charging convenience.',
+                'conclusion.suggestion_p2': '2. Market Diversification: Encourage more manufacturers to enter the market, promoting technological innovation and price optimization through healthy competition, providing more choices for consumers. Particularly in the mid-range market, there is a need to increase the supply of more affordable models.',
+                'conclusion.suggestion_p3': '3. Policy Support Direction: It is recommended to develop differentiated subsidy policies and promotion strategies based on the characteristics of 2,191 census tracts, with a focus on supporting the in-depth implementation of the Clean Alternative Fuel Vehicle certification program.',
+                'conclusion.suggestion_p4': '4. Data Monitoring Improvement: Strengthen the collection and monitoring of key data such as electric vehicle range and retail prices to provide more reliable data support for policy making and market planning.',
+                'card.time_range': 'Data Time Range',
+                'card.year_range': '1999-2025',
+                'card.update_date': 'Data Update Date: March 14, 2025',
+                'card.total_vehicles': 'Total Registered Vehicles',
+                'card.total_desc': 'Total EVs in Washington State',
+                'card.main_manufacturer': 'Leading Manufacturer',
+                'card.tesla': 'Tesla',
+                'card.manufacturer_desc': 'Largest Market Share Manufacturer',
+                'card.popular_model': 'Popular Model',
+                'card.model_desc': 'Best-selling Tesla Model',
+                'nav.projects': 'Analysis Cases',
+                'nav.contact': 'Contact Us',
+                'title.main': 'US Electric Vehicle Distribution Analysis',
+                'title.subtitle': 'In-depth analysis of EV distribution in Washington State, exploring market trends and environmental impact',
+                'title.platform': 'DATA.GOV Personal Analysis',
+                'title.ev_analysis': 'EV Data Analysis',
+                'data.overview_title': 'Data Overview (Click for Details)',
+                'data.source_prefix': 'Data sourced from ',
+                'data.source_link': 'US Government Open Data Platform (DATA.GOV)',
+                'data.source_description': 'Through the Washington State Department of Licensing (DOL), it includes registration information for all electric vehicles in the state. The dataset spans from 1999 to 2025, recording 232,230 electric vehicles with detailed data covering various dimensions from basic vehicle information to geographical distribution.',
+                'data.value_description': 'The value of this dataset lies in its provision of not only electric vehicle market trends but also detailed geographic location information and census tract data, enabling analysis of electric vehicle distribution in relation to socioeconomic factors such as population density and income levels. Through in-depth analysis of this data, we can better understand the market penetration rate and future development potential of electric vehicles.',
+                'data.update_date': 'Data Update Date: March 14, 2025',
+                'data.columns_title': 'Data Column Information (Click for Details)',
+                'data.basic_info_title': '1. Basic Vehicle Information',
+                'data.vin_label': 'VIN (First 10 Digits)',
+                'data.vin_value': ': 13,560 unique values, with 7SAYGDEE6P being the most common, appearing 1,193 times',
+                'data.make_label': 'Manufacturer (Make)',
+                'data.make_value': ': 46 brands, Tesla leads with 42.9% share, followed by Nissan and Chevrolet',
+                'data.model_label': 'Model',
+                'data.model_value': ': 170 different models, Tesla Model Y is the most popular with 20.9% share',
+                'data.year_label': 'Model Year',
+                'data.year_value': ': Covers 1999-2025, with median year 2023, indicating market dominance of new vehicles',
+                'data.type_label': 'Electric Vehicle Type',
+                'data.type_value': ': BEV accounts for 79.3%, PHEV accounts for 20.7%',
+                'data.tech_params_title': '2. Technical Parameters',
+                'data.range_label': 'Electric Range',
+                'data.range_value': ': Range 0-337 miles, average 46.76 miles, 58.95% missing data rate, statistics based on valid data only',
+                'data.msrp_label': 'Base MSRP',
+                'data.msrp_value': ': Ranges from economy to high-end models at $845,000, but with 98.59% missing data rate, statistics may not be representative',
+                'data.eligibility_label': 'Clean Alternative Fuel Vehicle Eligibility',
+                'data.eligibility_value': ': Three categories: Eligible, Not Eligible, and Under Review, with Under Review being the highest proportion',
+                'data.geo_info_title': '3. Geographic Information',
+                'data.county_label': 'County',
+                'data.county_value': ': King County has the most EVs, over 50% share. Bar charts can show county distribution, GIS heat maps can analyze regional concentration',
+                'data.city_label': 'City',
+                'data.city_value': ': Seattle leads with 36,865 vehicles. Recommended to use map visualization for city distribution, calculate per capita ownership with population data, analyze inter-city differences',
+                'data.state_label': 'State',
+                'data.state_value': ': Mainly in Washington State, with some cross-state registrations. Can analyze reasons for cross-state registration and study neighboring states\'s policy impact on registration choice',
+                'data.postal_label': 'Postal Code',
+                'data.postal_value': ': 950 different areas. Useful for micro-regional analysis, studying purchasing power distribution with socioeconomic data, mapping postal code level penetration rates',
+                'data.location_label': 'Location',
+                'data.location_value': ': Useful for hotspot analysis. Recommend using spatial cluster analysis to identify high-density areas, optimize facility planning with charging station distribution',
+                'data.utility_label': 'Electric Utility',
+                'data.utility_value': ': Puget Sound Energy has the widest service area. Can analyze EV distribution characteristics in different utility service areas, assess grid load impact',
+                'data.admin_info_title': '4. Administrative Information',
+                'data.dol_id_label': 'DOL Vehicle ID',
+                'data.dol_id_value': ': Unique identifier. Can be used to track individual vehicle registration status changes, analyze vehicle lifecycle characteristics',
+                'data.legislative_label': 'Legislative District',
+                'data.legislative_value': ': Districts 1-49, relatively even distribution with median at District 32. Recommend analyzing EV policy differences between districts, evaluating policy effects, can use box plots to show distribution characteristics',
+                'data.census_label': '2020 Census Tract',
+                'data.census_value': ': 2,191 different areas. Recommend multi-dimensional analysis with census data, such as relationship between income levels, education levels and EV adoption rates, using scatter plots and correlation analysis',
+                'chart.manufacturer_desc': 'Tesla dominates the electric vehicle market in Washington State, followed by Nissan and Chevrolet.',
+                'chart.ev_trend_desc': 'The proportion of pure electric vehicles in Washington State has been increasing year by year, indicating growing consumer preference for zero-emission vehicles.',
+                'chart.model_desc': 'Tesla Model 3 and Model Y are the most popular electric vehicle models in Washington State, followed by Nissan Leaf.',
+                'chart.utility_desc': 'Puget Sound Energy dominates electric vehicle charging services in Washington State, providing charging services for the majority of electric vehicle users.',
+                'chart.region_desc': 'Shows the distribution of the top 10 counties in Washington State by number of electric vehicles, with King County having the highest density of electric vehicles and dominating the market, which is closely related to the high income level and environmental awareness in the region.'
+            }
+        };
+
+        // 更新页面语言
+        function updatePageLanguage(lang) {
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+            localStorage.setItem('lang', lang);
+        }
+
+        // 初始化语言设置
+        function initLanguage() {
+            const savedLang = localStorage.getItem('lang') || 'en';
+            updatePageLanguage(savedLang);
+        }
+
+        // 页面加载时初始化语言
+        document.addEventListener('DOMContentLoaded', () => {
+            initLanguage();
+        });
+
+        // 为语言切换按钮添加点击事件
+        window.addEventListener('load', () => {
+            document.getElementById('langToggle').addEventListener('click', () => {
+                const currentLang = document.documentElement.lang;
+                const newLang = currentLang === 'zh' ? 'en' : 'zh';
+                updatePageLanguage(newLang);
+                // 重新初始化图表以更新语言
+                initCharts();
+            });
+            
+            // 添加折叠面板功能
+            document.querySelectorAll('.collapsible-header').forEach(header => {
+                header.addEventListener('click', function() {
+                    const content = this.nextElementSibling;
+                    content.classList.toggle('open');
+                    const icon = this.querySelector('.collapsible-icon');
+                    icon.classList.toggle('fa-chevron-down');
+                    icon.classList.toggle('fa-chevron-up');
+                });
+            });
+        });
+    </script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="fixed top-0 w-full bg-white/90 dark:bg-dark/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="index.html" class="flex items-center text-xl font-bold">
+                        <i class="fas fa-chart-pie text-primary mr-2"></i>
+                        <span data-i18n="title.platform">DATA.GOV个人数据分析</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="index.html#projects" class="hidden sm:block hover:text-primary transition-custom" data-i18n="nav.projects">数据分析案例</a>
+                    <a href="index.html#contact" class="hidden sm:block hover:text-primary transition-custom" data-i18n="nav.contact">联系我们</a>
+                    <button id="langToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-custom mr-2 flex items-center">
+                        <span class="text-sm font-medium px-2 border-r border-gray-300 dark:border-gray-700">中/EN</span>
+                    </button>
+                    <button id="themeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-custom">
+                        <i class="fas fa-sun text-yellow-500 dark:hidden"></i>
+                        <i class="fas fa-moon text-blue-400 hidden dark:block"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        <!-- 头部区域 -->
+        <div class="text-center mb-12 animate-fade-in">
+            <span class="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium mb-4" data-i18n="title.ev_analysis">电动汽车数据分析</span>
+            <h1 class="text-4xl sm:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-600" data-i18n="title.main">美国电动汽车分布数据分析</h1>
+            <p class="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto" data-i18n="title.subtitle">深入解读华盛顿州电动汽车分布数据，探索电动汽车市场趋势与环境影响</p>
+        </div>
+
+
+        <!-- 数据来源说明 -->
+        <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
+            <div class="collapsible-header cursor-pointer flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-t-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center">
+                    <i class="fas fa-database text-blue-500 mr-3 text-xl"></i>
+                    <h2 class="text-xl font-bold" data-i18n="data.overview_title">数据概览（详情请点击）</h2>
+                </div>
+                <i class="fas fa-chevron-down collapsible-icon transition-transform duration-300"></i>
+            </div>
+            <div class="collapsible-content border-x border-b border-gray-200 dark:border-gray-600 rounded-b-lg overflow-hidden p-6">
+                <p class="text-gray-700 dark:text-gray-300 leading-7 mb-6">
+                    <span data-i18n="data.source_prefix">数据来源于</span><a href="https://catalog.data.gov/dataset/electric-vehicle-population-data" target="_blank" class="text-blue-500 hover:underline" data-i18n="data.source_link">美国政府开放数据平台（DATA.GOV）</a>。<span data-i18n="data.source_description">通过华盛顿州机动车管理局（DOL），收录了该州所有已注册的电动汽车信息。数据集时间跨度从1999年至2025年，共记录了232,230辆电动汽车，涵盖了从车辆基本信息到地理分布等多个维度的详细数据。</span>
+                </p>
+
+                <p class="text-gray-700 dark:text-gray-300 leading-7 mb-8" data-i18n="data.value_description">
+                    这份数据集的价值在于它不仅提供了电动汽车市场的发展趋势，还包含了详细的地理位置信息和人口普查区域数据，可用于分析电动汽车分布与人口密度、收入水平等社会经济因素的关联。通过对这些数据的深入分析，我们可以更好地理解电动汽车的市场渗透率和未来发展潜力。
+                </p>
+                <p class="text-blue-800 dark:text-blue-400 leading-7 mb-8" data-i18n="data.update_date">数据更新日期：2025年3月14日</p>
+            <div class="mt-6">
+                <div class="collapsible-header cursor-pointer flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-t-lg border border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center">
+                        <i class="fas fa-table text-blue-500 mr-3"></i>
+                        <h3 class="text-lg font-semibold" data-i18n="data.columns_title">数据列信息（详情请点击）</h3>
+                    </div>
+                    <i class="fas fa-chevron-down collapsible-icon transition-transform duration-300"></i>
+                </div>
+                <div class="collapsible-content border-x border-b border-gray-200 dark:border-gray-600 rounded-b-lg overflow-hidden p-6">
+
+                    <div class="space-y-4 text-gray-600 dark:text-gray-400">
+                        <div>
+                            <h3 class="font-semibold mb-2" data-i18n="data.basic_info_title">1. 车辆基本信息</h3>
+                            <ul class="list-none space-y-2">
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.vin_label">VIN码前10位 (VIN (1-10))</strong><span data-i18n="data.vin_value">：13,560个不同值，最常见的为7SAYGDEE6P，出现1,193次</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.make_label">制造商 (Make)</strong><span data-i18n="data.make_value">：46个品牌，特斯拉占比最高达42.9%，其次是日产和雪佛兰</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.model_label">型号 (Model)</strong><span data-i18n="data.model_value">：170种不同型号，特斯拉Model Y最受欢迎，占比20.9%</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.year_label">车型年份 (Model Year)</strong><span data-i18n="data.year_value">：覆盖1999-2025年，中位数为2023年，显示市场以新车为主</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.type_label">车辆类型 (Electric Vehicle Type)</strong><span data-i18n="data.type_value">：BEV占比79.3%，PHEV占比20.7%</span></li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="font-semibold mb-2" data-i18n="data.tech_params_title">2. 技术参数</h3>
+                            <ul class="list-none space-y-2">
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.range_label">电动续航里程 (Electric Range)</strong><span data-i18n="data.range_value">：范围0-337英里，平均46.76英里，数据缺失率58.95%，统计信息仅基于有效数据</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.msrp_label">基础建议零售价 (Base MSRP)</strong><span data-i18n="data.msrp_value">：范围从经济型到高端车型的84.5万美元，但由于数据缺失率高达98.59%，统计信息可能不具有代表性</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.eligibility_label">清洁能源汽车资格 (Clean Alternative Fuel Vehicle Eligibility)</strong><span data-i18n="data.eligibility_value">：三类：合格、不合格和待研究，其中待研究占比最高</span></li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="font-semibold mb-2" data-i18n="data.geo_info_title">3. 地理位置信息</h3>
+                            <ul class="list-none space-y-2">
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.county_label">县 (County)</strong><span data-i18n="data.county_value">：King县拥有最多电动车，占比超过50%。可通过柱状图展示各县电动车分布，使用地理信息系统(GIS)绘制热力图，分析区域集中度</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.city_label">城市 (City)</strong><span data-i18n="data.city_value">：西雅图领先，拥有36,865辆。建议使用地图可视化展示城市分布，结合人口数据计算人均拥有率，分析城市间差异</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.state_label">州 (State)</strong><span data-i18n="data.state_value">：主要在华盛顿州，少量跨州登记。可分析跨州登记原因，研究相邻州政策对登记地选择的影响</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.postal_label">邮政编码 (Postal Code)</strong><span data-i18n="data.postal_value">：950个不同区域。可用于微观区域分析，结合社会经济数据研究购买力分布，绘制邮编级别渗透率地图</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.location_label">具体位置坐标 (Location)</strong><span data-i18n="data.location_value">：可用于hots分析。建议使用空间聚类分析识别高密度区域，结合充电站分布进行设施规划优化</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.utility_label">电力公司 (Electric Utility)</strong><span data-i18n="data.utility_value">：普吉特海湾能源公司服务范围最广。可分析不同电力公司服务区域的电动车分布特征，评估电网负载影响</span></li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h3 class="font-semibold mb-2" data-i18n="data.admin_info_title">4. 行政管理信息</h3>
+                            <ul class="list-none space-y-2">
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.dol_id_label">DOL车辆ID (DOL Vehicle ID)</strong><span data-i18n="data.dol_id_value">：唯一标识符。可用于追踪个体车辆注册状态变化，分析车辆生命周期特征</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.legislative_label">立法区 (Legislative District)</strong><span data-i18n="data.legislative_value">：1-49区，分布相对均匀，中位数为32区。建议分析各区电动车政策差异，评估政策效果，可使用箱线图展示分布特征</span></li>
+                                <li><strong class="text-blue-600 dark:text-blue-400" data-i18n="data.census_label">2020年人口普查区域 (2020 Census Tract)</strong><span data-i18n="data.census_value">：2,191个不同区域。建议结合人口普查数据进行多维度分析，如收入水平、教育程度与电动车普及率的关系，可使用散点图和相关性分析</span></li>
+                            </ul>
+                        </div>
+                                 
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12 bg-white dark:bg-gray-900">
+            <!-- 数据卡片1 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-7 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300 card-hover">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="font-semibold text-lg" data-i18n="card.time_range">数据时间跨度</h3>
+                    <div class="p-2.5 bg-green-100 dark:bg-green-900 rounded-lg shadow-sm">
+                        <i class="fas fa-calendar text-green-500 dark:text-green-400"></i>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold mb-3" data-i18n="card.year_range">1999年-2025年</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="card.update_date">数据更新日期：2025年3月14日</p>
+            </div>
+            
+            <!-- 数据卡片2 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-7 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300 card-hover">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="font-semibold text-lg" data-i18n="card.total_vehicles">登记车辆总数</h3>
+                    <div class="p-2.5 bg-blue-100 dark:bg-blue-900 rounded-lg shadow-sm">
+                        <i class="fas fa-car text-blue-500 dark:text-blue-400"></i>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold mb-3">232,230</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="card.total_desc">华盛顿州电动汽车总数</p>
+            </div>
+            
+            <!-- 数据卡片3 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-7 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300 card-hover">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="font-semibold text-lg" data-i18n="card.main_manufacturer">主要制造商</h3>
+                    <div class="p-2.5 bg-purple-100 dark:bg-purple-900 rounded-lg shadow-sm">
+                        <i class="fas fa-industry text-purple-500 dark:text-purple-400"></i>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold mb-3" data-i18n="card.tesla">特斯拉</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="card.manufacturer_desc">市场份额最大的制造商</p>
+            </div>
+            
+            <!-- 数据卡片4 -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-7 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300 card-hover">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="font-semibold text-lg" data-i18n="card.popular_model">热门车型</h3>
+                    <div class="p-2.5 bg-red-100 dark:bg-red-900 rounded-lg shadow-sm">
+                        <i class="fas fa-bolt text-red-500 dark:text-red-400"></i>
+                    </div>
+                </div>
+                <p class="text-3xl font-bold mb-3">Model Y</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="card.model_desc">特斯拉最畅销车型</p>
+            </div>
+
+        </section>
+
+        <!-- 图表区域 -->
+    
+        <!-- 特斯拉年度电动车总量统计图表 -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
+
+            <div class="h-96">
+                <canvas id="tesla-yearly-total-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- 制造商分布图表 -->
+            <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+
+                <div class="h-80">
+                    <canvas id="manufacturer-trend-chart"></canvas>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-4" data-i18n="chart.manufacturer_desc">特斯拉在华盛顿州电动汽车市场占据主导地位，其次是日产和雪佛兰。</p>
+            </section>
+
+            <!-- 环保效益分析图表 -->
+            <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+
+                <div class="h-80">
+                    <canvas id="environment-chart"></canvas>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-4" data-i18n="chart.ev_trend_desc">纯电动车型在华盛顿州的占比逐年提高，显示出消费者对零排放车辆的偏好增强。</p>
+            </section>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- 车型分布图表 -->
+            <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+
+                <div class="h-80">
+                    <canvas id="model-chart"></canvas>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-4" data-i18n="chart.model_desc">特斯拉Model 3和Model Y是华盛顿州最受欢迎的电动车型，日产聆风紧随其后。</p>
+            </section>
+
+            <!-- 电力公司分布图表 -->
+            <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+
+                <div class="h-80">
+                    <canvas id="utility-chart"></canvas>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-4" data-i18n="chart.utility_desc">普吉特海湾能源公司在华盛顿州电动汽车充电服务中占据主导地位，为大多数电动汽车用户提供充电服务。</p>
+            </section>
+        </div>
+
+        <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 mb-8">
+
+            <div class="h-96" id="region-map" style="z-index: 1;"></div>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-4" data-i18n="chart.region_desc">展示了华盛顿州电动汽车数量前10名的县区分布情况，其中King县拥有最高的电动汽车密度，占据主导地位，这与该地区的高收入水平和环保意识密切相关。</p>
+        </section>
+
+        <!-- 结论与建议 -->
+        <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 mb-8">
+            <div class="flex items-center mb-6">
+                <i class="fas fa-lightbulb text-yellow-500 mr-3 text-xl"></i>
+                <h2 class="text-xl font-bold" data-i18n="conclusion.title">结论与建议</h2>
+            </div>
+            
+            <!-- 市场趋势分析 -->
+            <div class="mb-8 bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                <h3 class="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100" data-i18n="conclusion.trend_title">市场趋势分析</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4" data-i18n="conclusion.trend_p1">华盛顿州电动汽车市场呈现显著增长态势，特斯拉以42.9%的市场份额占据主导地位，其Model Y和Model 3分别占据20.9%和18.7%的市场份额，呈现出强劲的品牌竞争力。日产和雪佛兰紧随其后，形成了多元化的市场竞争格局。</p>
+                <p class="text-gray-600 dark:text-gray-400 mb-4" data-i18n="conclusion.trend_p2">从车型年份分布来看，中位数为2023年，表明市场以新车型为主，反映出消费者对新技术和高性能电动车的偏好。纯电动车型（BEV）占比79.3%，插电式混合动力车型（PHEV）占比20.7%，显示市场正在向零排放车型转型。</p>
+                <p class="text-gray-600 dark:text-gray-400" data-i18n="conclusion.trend_p3">电动续航里程方面，虽然数据缺失率较高（58.95%），但现有数据显示平均续航里程达46.76英里，最高可达337英里，反映出电池技术的持续进步。</p>
+            </div>
+            
+            <!-- 地区分布特征 -->
+            <div class="mb-8 bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                <h3 class="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100" data-i18n="conclusion.region_title">地区分布特征</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4" data-i18n="conclusion.region_p1">King县是华盛顿州电动汽车分布最密集的区域，占全州电动车保有量的50%以上，这与该地区的高收入水平、完善的充电基础设施和强烈的环保意识密切相关。西雅图作为主要城市，拥有36,865辆电动汽车，呈现出都市区对清洁能源交通的高度接受度。</p>
+                <p class="text-gray-600 dark:text-gray-400" data-i18n="conclusion.region_p2">在电力供应方面，普吉特海湾能源公司（Puget Sound Energy）在电动汽车充电服务市场占据主导地位，为大多数电动汽车用户提供稳定的充电服务支持。这种集中化的能源供应格局有利于统一规划和优化充电网络。</p>
+            </div>
+            
+            <!-- 发展建议 -->
+            <div class="mb-4 bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                <h3 class="font-semibold text-lg mb-4 text-gray-900 dark:text-gray-100" data-i18n="conclusion.suggestion_title">发展建议</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4" data-i18n="conclusion.suggestion_p1">1. 充电基础设施优化：建议在电动汽车密度较低的农村和郊区地区加快充电设施布局，重点关注49个立法区的均衡发展，提高充电便利性。</p>
+                <p class="text-gray-600 dark:text-gray-400 mb-4" data-i18n="conclusion.suggestion_p2">2. 市场多元化发展：鼓励更多制造商进入市场，通过良性竞争推动技术创新和价格优化，为消费者提供更多选择。特别是在中端市场，需要增加价格更亲民的车型供给。</p>
+                <p class="text-gray-600 dark:text-gray-400 mb-4" data-i18n="conclusion.suggestion_p3">3. 政策支持方向：建议针对2,191个人口普查区域的特点，制定差异化的补贴政策和推广策略，重点支持清洁能源汽车认证（Clean Alternative Fuel Vehicle）项目的深入实施。</p>
+                <p class="text-gray-600 dark:text-gray-400" data-i18n="conclusion.suggestion_p4">4. 数据监测完善：加强对电动汽车续航里程和零售价格等关键数据的收集和监测，为政策制定和市场规划提供更可靠的数据支持。</p>
+            </div>
+        </section>
+    </main>
+    <!-- 引入JavaScript文件 -->
+    <script src="electric_vehicle_population_data_script.js"></script>
+</body>
+</html>
