@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - DATA.GOV Personal Data Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        // 语言配置
+        translations = {
+            'zh': {
+                'platform-name': 'DATA.GOV个人数据分析',
+                'nav-cases': '数据分析案例',
+                'nav-contact': '联系我们',
+                'contact-title': '联系我们',
+                'contact-subtitle': '欢迎与我们交流数据分析相关的问题和建议',
+                'email-title': '电子邮件',
+                'email-desc': '发送邮件与我们联系',
+                'github-title': 'GitHub',
+                'github-desc': '查看我们的开源代码',
+                'linkedin-title': 'LinkedIn',
+                'linkedin-desc': '关注我们的职业动态',
+                'twitter-title': 'Twitter',
+                'twitter-desc': '获取最新资讯动态'
+            },
+            'en': {
+                'platform-name': 'DATA.GOV Personal Analysis',
+                'nav-cases': 'Analysis Cases',
+                'nav-contact': 'Contact Us',
+                'contact-title': 'Contact Us',
+                'contact-subtitle': 'Welcome to discuss data analysis related questions and suggestions',
+                'email-title': 'Email',
+                'email-desc': 'Contact us via email',
+                'github-title': 'GitHub',
+                'github-desc': 'View our open source code',
+                'linkedin-title': 'LinkedIn',
+                'linkedin-desc': 'Follow our professional updates',
+                'twitter-title': 'Twitter',
+                'twitter-desc': 'Get latest news and updates'
+            }
+        };
+
+        // Tailwind配置
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#8A8F98',
+                        dark: '#111827',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'bounce-slow': 'bounce 3s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+    <style type="text/css">
+        @layer utilities {
+            .transition-custom {
+                transition: all 0.2s ease-in-out;
+            }
+            .card-hover {
+                transition: transform 0.3s ease-in-out;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+            }
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+    </style>
+    <script>
+        // 主题切换
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        // 语言切换
+        function updatePageLanguage(lang) {
+            const elements = document.querySelectorAll('[data-i18n]');
+            elements.forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            const currentLang = localStorage.getItem('lang') || 'zh';
+            updatePageLanguage(currentLang);
+
+            // 主题切换按钮
+            document.getElementById('themeToggle').addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            });
+
+            // 语言切换按钮
+            document.getElementById('langToggle').addEventListener('click', () => {
+                const currentLang = localStorage.getItem('lang') || 'zh';
+                const newLang = currentLang === 'zh' ? 'en' : 'zh';
+                localStorage.setItem('lang', newLang);
+                updatePageLanguage(newLang);
+            });
+        });
+    </script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="fixed top-0 w-full bg-white/90 dark:bg-dark/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="index.html" class="flex items-center text-xl font-bold">
+                        <i class="fas fa-chart-pie text-primary mr-2"></i>
+                        <span data-i18n="platform-name">美国政府开放数据分析</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="index.html#projects" class="hidden sm:block hover:text-primary transition-custom" data-i18n="nav-cases">数据分析案例</a>
+                    <a href="contact.html" class="hidden sm:block hover:text-primary transition-custom" data-i18n="nav-contact">联系我们</a>
+                    <button id="langToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-custom mr-2 flex items-center">
+                        <span class="text-sm font-medium px-2 border-r border-gray-300 dark:border-gray-700">中/EN</span>
+                    </button>
+                    <button id="themeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-custom">
+                        <i class="fas fa-sun text-yellow-500 dark:hidden"></i>
+                        <i class="fas fa-moon text-blue-400 hidden dark:block"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+        <!-- 头部区域 -->
+        <div class="text-center mb-16 animate-fade-in">
+            <h1 class="text-4xl sm:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600" data-i18n="contact-title">联系我们</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400" data-i18n="contact-subtitle">欢迎与我们交流数据分析相关的问题和建议</p>
+        </div>
+
+        <!-- 联系方式卡片 -->
+        <div class="flex justify-center">
+            <!-- 邮件卡片 -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg card-hover w-full max-w-sm">
+                <div class="text-center">
+                    <div class="w-12 h-12 mx-auto bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-envelope text-2xl text-indigo-600 dark:text-indigo-400"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2" data-i18n="email-title">电子邮件</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4" data-i18n="email-desc">发送邮件与我们联系</p>
+                    <a href="mailto:bella20250306@gmail.com" class="text-primary hover:text-indigo-700 dark:hover:text-indigo-300 transition-custom">bella20250306@gmail.com</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
